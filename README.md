@@ -5,6 +5,11 @@ It adds a **virtual Xbox controller** to the page. GFN treats it like a real Blu
 any game that supports controllers. It can also send **keyboard keys** and act as a **mouse**, for keyboard + mouse
 games.
 
+![GlassPad's default gamepad layout in landscape on an iPhone-sized screen](docs/images/gamepad.png)
+
+<sub>Screenshots are from the included test page on an iPhone-sized landscape screen, with a placeholder backdrop
+where the game stream would be.</sub>
+
 ## Features
 - Two analog sticks, a D-pad, ABXY, LB/RB/LT/RT, View/Menu, and L3/R3.
 - Drag any control to move it. Change its size, opacity, colour, label and shape. Delete, duplicate or add controls.
@@ -26,6 +31,9 @@ games.
 
 ## Keyboard + mouse
 There is a built-in **"Keyboard + Mouse"** profile. Pick it from **Settings → Layout profile**.
+
+![The Keyboard + Mouse profile: WASD stick and number keys on the left, a swipe-to-aim area with Fire, Aim, Jump and other keys on the right](docs/images/keyboard-mouse.png)
+
 - **Left stick → W A S D.** Under *Key at the rim* you can add a key that is pressed when you push the stick all
   the way out (for example Shift to sprint).
 - **Right side = mouse area.** Swipe to move the mouse or aim. A quick tap is a left click (you can turn this off).
@@ -70,9 +78,14 @@ built-in **controller-as-mouse mode** instead:
 5. Open **https://play.geforcenow.com** in a normal Safari tab. Tap the puzzle/**ᴀA** icon → **Userscripts** and
    check that "GlassPad for GeForce NOW" is enabled. Then reload the page.
 6. A small glass pill appears at the top centre with three buttons:
+
+   <img src="docs/images/pill.png" alt="The top pill with fullscreen, eye and settings buttons" width="160">
+
    - **fullscreen**
    - **eye**: show or hide the controls
    - **settings** (the sliders icon): opens the menu
+
+![The GlassPad settings menu showing the connection status, Edit layout, Fullscreen, profiles and appearance options](docs/images/menu.png)
 
 The **eye** hides the on-screen controls so you can tap GFN's own menus and the game directly, for example to pick
 things in a menu. Tap it again to bring the controls back. The virtual controller stays connected while hidden, so
@@ -89,6 +102,8 @@ Aim by moving the phone. Turn it on under **Settings → Gyro aim**:
 - **Off**
 - **Always on**
 - **While aiming:** only while you hold Aim / right-click, LT, or any button you give the **Gyro** key in edit mode.
+
+![The Gyro aim section of the menu: mode, sensitivity and invert switches](docs/images/gyro.png)
 
 Where the motion goes:
 - **Keyboard + mouse layouts:** gyro moves the mouse through the same smooth mouse engine as the aim area. This is
@@ -117,6 +132,8 @@ Tap the fullscreen icon in the top pill, or **Settings → Fullscreen**. Tap it 
   **ᴀA → Hide Toolbar**. That removes Safari's bars and leaves only a thin status strip.
 
 ## Customizing
+![Edit mode: the toolbar at the top, dashed outlines around every control, and the settings for the selected Y button](docs/images/edit.png)
+
 - **Settings → ✎ Edit layout**
   - Drag controls to move them.
   - Tap a control to open its settings: size, opacity, label, colour, shape, toggle mode, which gamepad buttons it
