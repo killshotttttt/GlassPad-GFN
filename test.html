@@ -1,0 +1,90 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GlassPad – test page</title>
+<!-- Loads the userscript directly so you can try it without GeForce NOW. -->
+<script src="gfn-touch-controls.user.js"></script>
+<style>
+  body { margin: 0; background: radial-gradient(circle at 20% 30%, #3a6ea5 0, transparent 45%), radial-gradient(circle at 75% 70%, #c0643c 0, transparent 40%), linear-gradient(160deg, #20324a, #4b5d3a 60%, #2a2320); color: #ddd; font: 14px -apple-system, system-ui, sans-serif; height: 100vh; overflow: hidden; }
+  #info { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); text-align: center; max-width: 60vw; }
+  #btns span { display: inline-block; min-width: 34px; margin: 2px; padding: 3px 4px; border-radius: 5px; background: #333; font-size: 12px; }
+  #btns span.on { background: #76b900; color: #111; }
+  #axes, #keys, #mouse { font-family: ui-monospace, Menlo, monospace; margin-top: 6px; font-size: 12px; }
+  #cursor { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: #ff0; pointer-events: none; }
+  #cursor.l { background: #e23b3b; } #cursor.r { background: #2f7de1; }
+</style>
+</head>
+<body>
+<div id="info">
+  <div id="id">No gamepad</div>
+  <div id="btns"></div>
+  <div id="axes"></div>
+  <div id="keys">keys: –</div>
+  <div id="mouse">mouse mode: off</div>
+</div>
+<div id="cursor"></div>
+<script>
+  const names = ['A','B','X','Y','LB','RB','LT','RT','View','Menu','L3','R3','Up','Down','Left','Right','Xbox'];
+  const $ = (id) => document.getElementById(id);
+  let clicksOnPage = 0;
+  document.addEventListener('pointerdown', () => { clicksOnPage++; });
+
+  // Keyboard log (what GFN's document listener would receive).
+  const keyLog = [];
+  const held = new Set();
+  for (const t of ['keydown', 'keyup']) document.addEventListener(t, (e) => {
+    if (t === 'keydown') held.add(e.code); else held.delete(e.code);
+    keyLog.push(`${t === 'keydown' ? '↓' : '↑'}${e.code}(${e.keyCode})`);
+    $('keys').textContent = `held: [${[...held].join(' ')}]  last: ${keyLog.slice(-4).join(' ')}`;
+  });
+  window.__keyLog = keyLog;
+
+  // Imitation of GFN's controller-as-mouse mode: R3 pressed alone twice
+  // within 500 ms toggles it; right stick moves the cursor every 8 ms by
+  // a*12/(4-3|a|) px (|a| < 0.1 ignored), keeping the sub-pixel remainder
+  // only while the direction stays the same; A/R3/RT = left, LT = right.
+  const sim = { on: false, lastR3: -1e9, prevR3: false, x: innerWidth / 2, y: innerHeight / 2, fx: 0, fy: 0, ax: 0, ay: 0, l: false, r: false, clicks: 0 };
+  window.__sim = sim;
+  setInterval(() => {
+    if (!sim.on) return;
+    const dz = (v) => (v > -0.1 && v < 0.1 ? 0 : v);
+    const ax = dz(sim.ax), ay = dz(sim.ay);
+    const z = 4 - 3 * Math.min(1, Math.hypot(ax, ay));
+    const cx = (ax * 12) / z, cy = (ay * 12) / z;
+    sim.fx = Math.sign(sim.fx) !== Math.sign(cx) ? cx : sim.fx + cx;
+    sim.fy = Math.sign(sim.fy) !== Math.sign(cy) ? cy : sim.fy + cy;
+    const ix = Math.trunc(sim.fx), iy = Math.trunc(sim.fy);
+    sim.fx -= ix; sim.fy -= iy; sim.x += ix; sim.y += iy;
+  }, 8);
+
+  (function loop() {
+    const p = [...navigator.getGamepads()].find(Boolean);
+    if (p) {
+      const pressed = p.buttons.map((b, i) => (b.pressed ? i : -1)).filter((i) => i >= 0);
+      const r3only = pressed.length === 1 && pressed[0] === 11;
+      if (r3only && !sim.prevR3) {
+        const now = performance.now();
+        if (now - sim.lastR3 < 500) { sim.on = !sim.on; sim.lastR3 = -1e9; } else sim.lastR3 = now;
+      }
+      sim.prevR3 = p.buttons[11].pressed;
+      sim.ax = p.axes[2]; sim.ay = p.axes[3];
+      const l = sim.on && (p.buttons[0].pressed || p.buttons[11].pressed || p.buttons[7].pressed);
+      if (l && !sim.l) sim.clicks++;
+      sim.l = l; sim.r = sim.on && p.buttons[6].pressed;
+      $('id').textContent = `${p.id} · index ${p.index} · ${p.mapping} · instanceof Gamepad: ${p instanceof Gamepad}`;
+      $('btns').innerHTML = p.buttons.map((b, i) => `<span class="${b.pressed ? 'on' : ''}">${names[i]}</span>`).join('');
+      $('axes').textContent = 'axes ' + p.axes.map((a) => a.toFixed(2).padStart(5)).join('  ') + `  · page pointerdowns: ${clicksOnPage}`;
+    } else {
+      $('id').textContent = 'No gamepad';
+    }
+    $('mouse').textContent = `mouse mode: ${sim.on ? 'ON' : 'off'} · cursor ${Math.round(sim.x)},${Math.round(sim.y)} · left clicks: ${sim.clicks}${sim.r ? ' · RMB held' : ''}`;
+    const c = $('cursor');
+    c.style.left = sim.x + 'px'; c.style.top = sim.y + 'px';
+    c.className = sim.l ? 'l' : sim.r ? 'r' : '';
+    requestAnimationFrame(loop);
+  })();
+</script>
+</body>
+</html>
