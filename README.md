@@ -22,15 +22,16 @@ where the game stream would be.</sub>
 - Per-stick sensitivity, deadzone, touch-area size and invert Y.
 - Slide your thumb from one button to another (for example A → B) without lifting it.
 - Multi-touch, so you can move, aim and press buttons at the same time.
-- **Profiles**, for example one layout per game, plus export and import as JSON.
+- **Profiles**, for example one layout per game. Share or back up a layout with one tap: copy/paste it as text, or
+  save/open it as a file.
 - Hides itself when a real controller connects (you can turn this off).
-- Clean frosted-glass look. If the stream stutters on an older device, turn off **Settings → Appearance → Frosted
+- Clean frosted-glass look. If the stream stutters on an older device, turn off **Settings → Look → Frosted
   glass**. That keeps the look but skips the blur.
 - **Fullscreen** button. See [Fullscreen](#fullscreen).
 - Touches on the controls never reach the stream. Touches anywhere else still work as normal GFN mouse/touch input.
 
 ## Keyboard + mouse
-There is a built-in **"Keyboard + Mouse"** profile. Pick it from **Settings → Layout profile**.
+There is a built-in **"Keyboard + Mouse"** profile. Pick it from the profile list under **Settings → Layout**.
 
 ![The Keyboard + Mouse profile: WASD stick and number keys on the left, a swipe-to-aim area with Fire, Aim, Jump and other keys on the right](docs/images/keyboard-mouse.png)
 
@@ -63,7 +64,8 @@ built-in **controller-as-mouse mode** instead:
   because they send real keys. Switching back to a gamepad-only profile turns the mode off again.
 - Switching the mode on or off produces one left click at the cursor. GFN does the same with a real controller.
 - The script can't see whether GFN's mouse mode is actually on, so it keeps its own record. If they get out of
-  sync, tap the **🖱** button or **Settings → Mouse → Toggle** once. Symptoms of being out of sync:
+  sync, tap the **🖱** button or **Settings → Mouse → Toggle** once (the Mouse section only
+  shows up in layouts that use the mouse). Symptoms of being out of sync:
   - swipes don't move the cursor, or move the camera like a stick instead;
   - in a gamepad layout, buttons do nothing.
 
@@ -71,8 +73,14 @@ built-in **controller-as-mouse mode** instead:
 1. Install **Userscripts** from the App Store (free, by Justin Wasack).
 2. Open the **Userscripts** app and tap **Set Userscripts Directory**. Pick a folder, for example
    `iCloud Drive/Userscripts`.
-3. Put `gfn-touch-controls.user.js` into that folder. From this PC you can use iCloud for Windows, or email or
-   message the file to yourself and choose **Save to Files** on the phone.
+3. Install the script. Either:
+   - **From the link (easiest):** open this link in Safari, tap the puzzle/**ᴀA** icon → **Userscripts**, and tap
+     the install prompt:
+     https://gist.githubusercontent.com/killshotttttt/d4bd9b1bc9ee3115c96c240e08b7fc82/raw/gfn-touch-controls.user.js
+   - **By hand:** put `gfn-touch-controls.user.js` into that folder, for example with iCloud for Windows, or by
+     emailing it to yourself and choosing **Save to Files**.
+
+   Keep only one copy of the script in the folder. If you're switching to the link install, delete the old file first.
 4. Go to **Settings → Apps → Safari → Extensions → Userscripts**. Turn it **on** and set
    **play.geforcenow.com** to **Allow** (or allow All Websites).
 5. Open **https://play.geforcenow.com** in a normal Safari tab. Tap the puzzle/**ᴀA** icon → **Userscripts** and
@@ -85,20 +93,34 @@ built-in **controller-as-mouse mode** instead:
    - **eye**: show or hide the controls
    - **settings** (the sliders icon): opens the menu
 
-![The GlassPad settings menu showing the connection status, Edit layout, Fullscreen, profiles and appearance options](docs/images/menu.png)
+![The GlassPad settings menu showing the connection status, Edit layout, Fullscreen, profiles, sharing and look options](docs/images/menu.png)
 
 The **eye** hides the on-screen controls so you can tap GFN's own menus and the game directly, for example to pick
 things in a menu. Tap it again to bring the controls back. The virtual controller stays connected while hidden, so
 mouse mode and the game's input don't reset. To switch the virtual controller off completely, use
-**Settings → Input → Virtual controller**.
+**Settings → More settings → Virtual controller**.
 
 > ⚠️ Safari extensions **do not run in Home Screen web apps**. Launch GFN from a normal Safari tab, not from the
 > GeForce NOW icon on your Home Screen. If GFN insists you add it to the Home Screen before it will stream, the menu
-> option **"Pretend to be the Home Screen app"** (on by default on iOS) makes the page think it already is.
+> option **More settings → "Act as Home Screen app"** (on by default on iOS) makes the page think it already is.
 > Turn it off and reload if it causes layout problems.
 
+## Updates
+The script updates itself through the Userscripts app. It's published to a secret (unlisted) GitHub gist, and its
+`@updateURL` points there.
+- Userscripts checks for new versions every so often. When one is out, it appears under **Updates** in the
+  Userscripts popup (puzzle/**ᴀA** icon → **Userscripts**). Tap it to install, then reload GFN.
+- To check straight away, open the Userscripts popup, refresh it, and look under **Updates**.
+- Your layouts and settings are kept: they're stored in Safari, not in the script file.
+
+Publishing a new version from this PC:
+1. Raise `// @version` at the top of `gfn-touch-controls.user.js`, for example 1.6.1 → 1.6.2. The app only updates when
+   the version number goes up.
+2. Run `bash release.sh`. It checks the file, refuses to publish an old version number, and uploads to the gist.
+3. Commit and push to this repo as usual.
+
 ## Gyro aim
-Aim by moving the phone. Turn it on under **Settings → Gyro aim**:
+Aim by moving the phone. Pick a mode under **Settings → Gyro aim** (its other options appear once it's on):
 - **Off**
 - **Always on**
 - **While aiming:** only while you hold Aim / right-click, LT, or any button you give the **Gyro** key in edit mode.
@@ -119,17 +141,27 @@ Details:
   or down.
 - **Hand shake** is filtered out, so the aim stays steady when you hold still.
 - **Paused** while the controls are hidden (eye button), the menu is open, or you're editing.
-- **Settings:** sensitivity (default 10 cursor px per degree) and invert left/right or up/down. If a direction feels
-  backwards on your phone, flip the matching invert switch.
+- **Settings:** sensitivity (default 10 cursor px per degree) and **Invert** left/right or up/down. If a direction
+  feels backwards on your phone, tap the matching Invert button.
 - **Permission:** iPhone asks for motion access. Tap **Allow** in the Gyro section. After a reload, iOS asks again on
   your first tap of any control.
 
 ## Fullscreen
 Tap the fullscreen icon in the top pill, or **Settings → Fullscreen**. Tap it again to exit.
 - **iPad:** Safari supports fullscreen for web pages, so the whole page goes fullscreen and the controls stay on top.
+  - Safari closes fullscreen whenever you make a quick **one-finger swipe down** anywhere on the screen, for example
+    a downward flick on the aim area. Web pages can't block that gesture.
+  - So GlassPad puts fullscreen back on your **next tap**, anywhere on the screen. Safari only allows fullscreen to
+    start from a tap, so it can't happen sooner.
+  - To leave fullscreen for real, tap the fullscreen button in the pill. If Safari has just closed it, tapping the
+    button means "stay out".
+  - Turn this off under **More settings → Return to fullscreen**.
+  - Swipes while another finger is touching the screen (for example a thumb on the stick) don't trigger Safari's
+    gesture.
 - **iPhone:** Safari doesn't let websites go fullscreen; only videos can, and a fullscreen video would hide the
   controls. The button shows a hint instead. The closest you can get is to turn the phone to landscape and tap
-  **ᴀA → Hide Toolbar**. That removes Safari's bars and leaves only a thin status strip.
+  **ᴀA → Hide Toolbar**. That removes Safari's bars and leaves only a thin address strip. Web pages can't hide
+  that strip. Only Home Screen web apps open without it, and Safari extensions such as Userscripts don't run there.
 
 ## Customizing
 ![Edit mode: the toolbar at the top, dashed outlines around every control, and the settings for the selected Y button](docs/images/edit.png)
@@ -142,8 +174,21 @@ Tap the fullscreen icon in the top pill, or **Settings → Fullscreen**. Tap it 
   - Use **↺ Reset** to restore the defaults for the current profile.
   - Tap **✓ Done** when you're finished.
 - While editing, the settings button can be dragged too.
-- **Profiles**: **New** copies the current layout into a new profile. Switch profiles with the dropdown.
-- **Export** copies the layout JSON to the clipboard. Paste JSON into the box and tap **Import** to load it.
+- **Profiles** (Settings → Layout): pick one from the list. **+** copies the current layout into a new profile,
+  **✎** renames it and the bin deletes it.
+
+### Sharing and backups
+The **Share** row under **Settings → Layout** works on the current profile:
+- **Copy** puts the layout on the clipboard straight away. Paste it into Notes, Messages or a chat to keep or
+  share it.
+- **Paste** imports a layout you've copied. Safari shows a small **Paste** bubble first; tap it.
+- **↓ (save)** saves the layout as a `.json` file. On iPhone/iPad this opens the share sheet, so you can pick
+  **Save to Files**, AirDrop or Messages.
+- **↑ (open)** imports a `.json` layout file.
+
+An imported layout is always added as a **new profile** and selected, so it never overwrites one you have. If the
+name is taken it gets a number, for example "Default 2". If the clipboard is blocked, a text box appears instead
+so you can copy or paste by hand.
 
 Settings are saved per site in `localStorage`.
 
@@ -153,10 +198,11 @@ Settings are saved per site in `localStorage`.
   - Check you're in a Safari tab, not the Home Screen app.
   - Reload the page.
 - **Controls show but the game ignores them**
-  - Open settings. The status line should say `Virtual pad: connected` and `GFN reading it: yes`.
-  - If GFN isn't reading the pad, tap **Reconnect virtual pad** once the game has started.
+  - Open settings. The line under the title should say `Connected · GeForce NOW is reading input`, with a green dot.
+  - If GFN isn't reading the pad, open **More settings** and tap **Reconnect** once the
+    game has started.
   - Make sure the game itself supports controllers.
-- **Controls vanished**: a real controller was detected. Turn off "Hide when a real controller is connected".
+- **Controls vanished**: a real controller was detected. Turn off **More settings → Hide with a real controller**.
 - **Stuck input**: lift every finger. Inputs also reset when you leave Safari.
 - **Keys do nothing**
   - Tap the game picture once so the stream has focus.

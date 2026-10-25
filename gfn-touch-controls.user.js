@@ -1,13 +1,15 @@
 // ==UserScript==
 // @name         GlassPad for GeForce NOW
 // @namespace    gfn-touch-controls
-// @version      1.5.1
+// @version      1.6.2
 // @description  Fully customizable on-screen controls for GeForce NOW in Safari: virtual Xbox controller, keyboard keys and a swipe-to-aim mouse area.
 // @match        https://play.geforcenow.com/*
 // @run-at       document-start
 // @inject-into  page
 // @noframes
 // @grant        none
+// @updateURL    https://gist.githubusercontent.com/killshotttttt/d4bd9b1bc9ee3115c96c240e08b7fc82/raw/gfn-touch-controls.meta.js
+// @downloadURL  https://gist.githubusercontent.com/killshotttttt/d4bd9b1bc9ee3115c96c240e08b7fc82/raw/gfn-touch-controls.user.js
 // ==/UserScript==
 
 (function () {
@@ -18,6 +20,7 @@
   /* ------------------------------------------------------------------ *
    * Constants
    * ------------------------------------------------------------------ */
+  const VERSION = '1.6.2'; // kept in step with @version by release.sh
   const STORE_KEY = 'gfn-touch-controls:v1';
   const PAD_ID = 'Xbox 360 Controller (XInput STANDARD GAMEPAD)';
   // Standard Gamepad mapping (https://w3c.github.io/gamepad/#remapping)
@@ -152,6 +155,7 @@
       autoHide: true,
       haptics: true,
       spoofStandalone: IS_IOS,
+      keepFs: true, // go back into fullscreen after Safari's swipe-down closes it
       gear: { x: 50, y: 5 },
       active: 'Default',
       profiles: { Default: defaultControls(), [KBM_NAME]: defaultKbmControls() },
@@ -727,8 +731,12 @@
    * ------------------------------------------------------------------ */
   const active = new Map(); // pointerId -> { move(ev), end(ev) }
   const ui = { host: null, root: null, layer: null, gear: null, panel: null, editBar: null, inspector: null,
-    panelOpen: false, edit: false, selected: null };
+    panelOpen: false, advOpen: false, profOpen: false, edit: false, selected: null };
   const els = new Map(); // control id -> element
+  // want: the user turned fullscreen on with our button. lost: Safari closed it
+  // anyway (on iPad a quick one-finger swipe down anywhere exits fullscreen, and
+  // pages can't block that), so the next tap puts it back.
+  const fs = { want: false, lost: false };
 
   const ROUTED_EVENTS = ['pointerdown', 'pointermove', 'pointerup', 'pointercancel',
     'touchstart', 'touchmove', 'touchend', 'touchcancel',
@@ -742,10 +750,15 @@
 
   function route(e) {
     const fromOverlay = ui.host && e.target === ui.host;
-    // Safari only allows fullscreen from inside a touchend/click handler.
+    const onFsButton = () => { const t = e.composedPath()[0]; return !!(t && t.closest && t.closest('[data-gear="fs"]')); };
+    // Safari only allows fullscreen from inside a touchend/click handler. After Safari
+    // closed it on us, the first tap anywhere puts it back.
+    if (e.type === 'touchend' && fs.lost && !fsElement() && !(fromOverlay && onFsButton())) {
+      fs.lost = false;
+      toggleFullscreen();
+    }
     if (e.type === 'touchend' && fromOverlay && !ui.edit) {
-      const t = e.composedPath()[0];
-      if (t && t.closest && t.closest('[data-gear="fs"]')) toggleFullscreen();
+      if (onFsButton()) toggleFullscreen();
       // After a reload iOS needs a fresh tap to grant motion access again.
       if (settings.gyroMode !== 'off' && !gyro.granted) requestGyro(true);
     }
@@ -1062,11 +1075,19 @@
   const fsElement = () => document.fullscreenElement || document.webkitFullscreenElement;
 
   function toggleFullscreen() {
+    if (fs.lost && !fsElement()) {
+      // Tapping the button while we're waiting to go back means "stay out".
+      fs.want = fs.lost = false;
+      toast('Fullscreen off.');
+      return;
+    }
     try {
       if (fsElement()) {
+        fs.want = false;
         (document.exitFullscreen || document.webkitExitFullscreen).call(document);
         return;
       }
+      fs.want = true;
       const el = document.documentElement;
       const enabled = document.fullscreenEnabled || document.webkitFullscreenEnabled;
       if (!enabled || !(el.requestFullscreen || el.webkitRequestFullscreen)) {
@@ -1083,15 +1104,23 @@
   }
 
   function onFullscreenChange() {
+    if (fsElement()) {
+      fs.lost = false;
+      if (ui.toast && ui.toast.dataset.kind === 'fs-lost') ui.toast.style.display = 'none';
+    } else if (fs.want && settings.keepFs) {
+      fs.lost = true;
+      toast('Safari closed fullscreen. Tap anywhere to go back, or tap the fullscreen button to stay out.', 'fs-lost');
+    } else fs.want = false;
     setTimeout(mount, 50);
     renderGear();
     if (ui.panelOpen) renderPanel();
   }
 
   let toastTimer = 0;
-  function toast(msg) {
+  function toast(msg, kind = '') {
     if (!ui.toast) return;
     ui.toast.textContent = msg;
+    ui.toast.dataset.kind = kind;
     ui.toast.style.display = '';
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => { ui.toast.style.display = 'none'; }, 4000);
@@ -1189,7 +1218,7 @@
              border-radius: 10px; padding: 7px 10px; font-size: 16px; outline: none; -webkit-appearance: none; appearance: none; }
     select { background-image: linear-gradient(45deg, transparent 50%, rgba(255,255,255,.6) 50%), linear-gradient(135deg, rgba(255,255,255,.6) 50%, transparent 50%);
              background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50%; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 28px; }
-    select option { color: #111; }
+    select option { color: #fff; background: #26262c; }
     textarea { width: 100%; height: 64px; font: 12px ui-monospace, Menlo, monospace; margin-top: 10px; }
     input[type=range] { flex: 1.4; -webkit-appearance: none; appearance: none; height: 4px; border-radius: 2px;
                         background: rgba(255,255,255,.2); outline: none; }
@@ -1214,6 +1243,48 @@
     .chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 6px; }
     .chip { padding: 6px 2px; font-size: 12px; }
     .chip.on { background: #fff; border-color: #fff; color: #111; }
+
+    /* ---- compact settings panel ---- */
+    .panel { padding: 14px 14px 12px; }
+    .panel .hd { margin-bottom: 0; }
+    .hd .title { display: flex; align-items: center; gap: 8px; }
+    .hd .ver { font-size: 11px; font-weight: 500; color: rgba(255,255,255,.45); padding: 2px 7px; border-radius: 999px;
+               background: rgba(255,255,255,.08); font-variant-numeric: tabular-nums; }
+    .panel .status { margin: 0 0 10px; }
+    .panel .sec { margin: 12px 6px 5px; }
+    .panel .row { min-height: 40px; gap: 8px; }
+    .panel .group > .muted { padding: 0 0 9px; }
+    button.sm { display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px; font-size: 12px; flex: none; }
+    button.sm svg { width: 14px; height: 14px; }
+    button.ib svg { width: 15px; height: 15px; }
+    button.ib.danger { color: #ff6961; }
+    .picks { display: flex; gap: 6px; }
+    .pick { padding: 6px 11px; font-size: 12px; font-weight: 600; border-radius: 999px; background: rgba(255,255,255,.1);
+            border: 1px solid rgba(255,255,255,.14); }
+    .pick.on { background: #fff; border-color: #fff; color: #111; }
+    .pick input { display: none; }
+    .io { padding: 2px 0 10px; }
+    .io textarea { margin: 6px 0 8px; }
+    button.more { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; margin: 10px 0 6px;
+                  background: transparent; border-color: transparent; color: rgba(255,255,255,.55); font-size: 12px; }
+    .chev { width: 14px; height: 14px; display: inline-flex; transition: transform .2s; }
+    .chev.up { transform: rotate(180deg); }
+    .ui { color-scheme: dark; }
+    button.dd { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+                padding: 7px 10px 7px 14px; border-radius: 12px; font-size: 15px; background: rgba(255,255,255,.08);
+                border-color: rgba(255,255,255,.12); }
+    button.dd > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .panel .row.pad { padding: 8px 0; }
+    .opts { display: flex; flex-direction: column; gap: 2px; padding: 0 0 8px; }
+    .group > .opts + .row { border-top: 1px solid rgba(255,255,255,.07); }
+    button.opt { display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; border-radius: 10px;
+                 background: transparent; border-color: transparent; font-weight: 500; font-size: 14px; text-align: left; }
+    button.opt.on { background: rgba(255,255,255,.12); font-weight: 600; }
+    button.opt svg { width: 16px; height: 16px; flex: none; color: #34c759; }
+    .seg { flex: 1; display: flex; padding: 3px; gap: 3px; border-radius: 12px; background: rgba(0,0,0,.2); }
+    .seg button { flex: 1; padding: 7px 4px; border-radius: 9px; background: transparent; border-color: transparent;
+                  font-size: 13px; color: rgba(255,255,255,.7); white-space: nowrap; }
+    .seg button.on { background: rgba(255,255,255,.9); color: #111; box-shadow: 0 2px 6px rgba(0,0,0,.25); }
   `;
 
   function place(el, pos, w, h) {
@@ -1301,6 +1372,15 @@
     chevron: '<svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg>',
     eye: '<svg viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
     eyeOff: '<svg viewBox="0 0 24 24"><path d="M10.6 5.1A9.8 9.8 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-2.6 3.5M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18"/></svg>',
+    plus: '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+    pencil: '<svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg>',
+    trash: '<svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
+    copy: '<svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>',
+    paste: '<svg viewBox="0 0 24 24"><path d="M9 4h6v3H9zM15 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2"/></svg>',
+    save: '<svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>',
+    open: '<svg viewBox="0 0 24 24"><path d="M12 15V4M7 9l5-5 5 5M5 20h14"/></svg>',
+    chevronDown: '<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>',
+    check: '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
   };
 
   function renderGear() {
@@ -1342,7 +1422,6 @@
       : polling ? 'Connected · GeForce NOW is reading input' : 'Connected · waiting for GeForce NOW';
     return { ok: pad.connected && polling, text: real ? `${text} · ${real} real controller${real > 1 ? 's' : ''}` : text };
   }
-  const statusHtml = () => { const s = status(); return `<span class="dot${s.ok ? ' ok' : ''}"></span>${esc(s.text)}`; };
   const toggleRow = (label, key, invert) =>
     `<label class="row"><span>${label}</span><input type="checkbox" data-set="${key}"${invert ? ' data-invert="1"' : ''}${!settings[key] === !!invert ? ' checked' : ''}></label>`;
   const sliderRow = (label, key, min, max, step) =>
@@ -1350,10 +1429,13 @@
 
   function renderPanel() {
     const profiles = Object.keys(settings.profiles)
-      .map((n) => `<option value="${esc(n)}"${n === settings.active ? ' selected' : ''}>${esc(n)}</option>`).join('');
+      .map((n) => `<button class="opt${n === settings.active ? ' on' : ''}" data-action="profile-pick" data-name="${esc(n)}"><span>${esc(n)}</span>${n === settings.active ? ICONS.check : ''}</button>`).join('');
+    const gyroOn = settings.gyroMode !== 'off';
+    const chip = (label, key) => `<label class="pick${settings[key] ? ' on' : ''}"><input type="checkbox" data-set="${key}"${settings[key] ? ' checked' : ''}>${label}</label>`;
+    const ib = (action, icon, title, cls = '') => `<button class="x ib ${cls}" data-action="${action}" aria-label="${title}" title="${title}">${ICONS[icon]}</button>`;
     ui.panel.innerHTML = `
-      <div class="hd">GlassPad<button class="x" data-action="close">✕</button></div>
-      <div class="status" data-status>${statusHtml()}</div>
+      <div class="hd"><span class="title">GlassPad <span class="ver">v${VERSION}</span><span class="dot${status().ok ? ' ok' : ''}" data-dot></span></span><button class="x" data-action="close">✕</button></div>
+      <div class="status" data-status>${esc(status().text)}</div>
       <div class="btns tight">
         <button class="primary grow" data-action="edit">Edit layout</button>
         <button class="grow" data-action="fullscreen">${fsElement() ? 'Exit fullscreen' : 'Fullscreen'}</button>
@@ -1361,12 +1443,21 @@
 
       <div class="sec">Layout</div>
       <div class="group">
-        <div class="row"><select data-set="profile">${profiles}</select></div>
-        <div class="row"><span class="muted">Profile</span>
-          <button data-action="profile-new">New</button><button data-action="profile-rename">Rename</button><button class="danger" data-action="profile-delete">Delete</button></div>
+        <div class="row pad"><button class="dd" data-action="profile-list" aria-expanded="${!!ui.profOpen}"><span>${esc(settings.active)}</span><span class="chev${ui.profOpen ? ' up' : ''}">${ICONS.chevronDown}</span></button>
+          ${ib('profile-new', 'plus', 'New profile')}${ib('profile-rename', 'pencil', 'Rename profile')}${ib('profile-delete', 'trash', 'Delete profile', 'danger')}</div>
+        ${ui.profOpen ? `<div class="opts">${profiles}</div>` : ''}
+        <div class="row"><span>Share</span>
+          <button class="sm" data-action="export">${ICONS.copy}Copy</button><button class="sm" data-action="import">${ICONS.paste}Paste</button>
+          ${ib('export-file', 'save', 'Save as file')}${ib('import-file', 'open', 'Open a file')}</div>
+        <div class="io" data-io-wrap style="display:none">
+          <div class="muted" data-io-hint></div>
+          <textarea data-io></textarea>
+          <div class="btns tight"><button class="primary grow" data-action="import-text" data-io-go>Import</button><button class="grow" data-action="io-close">Close</button></div>
+        </div>
+        <input type="file" accept=".json,application/json,text/plain" data-file hidden>
       </div>
 
-      <div class="sec">Appearance</div>
+      <div class="sec">Look</div>
       <div class="group">
         ${toggleRow('Show controls', 'hidden', true)}
         ${sliderRow('Opacity', 'opacity', 0.1, 1, 0.05)}
@@ -1374,38 +1465,32 @@
         ${toggleRow('Frosted glass', 'blur')}
       </div>
 
-      <div class="sec">Input</div>
+      <div class="sec">Gyro aim</div>
       <div class="group">
+        <div class="row pad"><div class="seg">${[['off', 'Off'], ['always', 'Always'], ['hold', 'While aiming']]
+          .map(([v, n]) => `<button class="${settings.gyroMode === v ? 'on' : ''}" data-action="gyro-mode" data-v="${v}">${n}</button>`).join('')}</div></div>
+        ${settings.gyroMode === 'hold' ? '<div class="muted">On while you hold Aim, LT or a button with the <b>Gyro</b> key.</div>' : ''}
+        ${gyroOn ? `${sliderRow('Sensitivity', 'gyroSens', 0.2, 4, 0.1)}
+        <div class="row"><span>Invert</span><div class="picks">${chip('Left / right', 'gyroInvX')}${chip('Up / down', 'gyroInvY')}</div></div>
+        <div class="row"><span class="muted" data-gyro>${esc(gyroStatus())}</span><button class="sm" data-action="gyro-allow" style="${gyro.granted ? 'display:none' : ''}">Allow</button></div>` : ''}
+      </div>
+
+      ${profileUsesMouse() || mm.on ? `<div class="sec">Mouse</div>
+      <div class="group">
+        <div class="row"><span>Mouse mode <span class="muted" data-mm>${mm.on ? 'on' : 'off'}</span></span><button class="sm" data-action="mousemode">Toggle</button></div>
+        <div class="muted">Turns on by itself. If swipes stop moving the cursor, tap Toggle once.</div>
+      </div>` : ''}
+
+      <button class="more" data-action="adv">More settings <span class="chev${ui.advOpen ? ' up' : ''}">${ICONS.chevronDown}</span></button>
+      ${ui.advOpen ? `<div class="group">
         ${toggleRow('Virtual controller', 'show')}
         ${toggleRow('Hide with a real controller', 'autoHide')}
         ${CAN_VIBRATE ? toggleRow('Vibrate on press', 'haptics') : ''}
-        <div class="row"><span>Mouse mode <span class="muted" data-mm>${mm.on ? 'on' : 'off'}</span></span><button data-action="mousemode">Toggle</button></div>
-        <div class="muted">Turns on by itself when you use a mouse control. If swipes stop moving the cursor, tap Toggle once.</div>
-      </div>
-
-      <div class="sec">Gyro aim</div>
-      <div class="group">
-        <div class="row"><span>Gyro</span><select data-set="gyroMode">${[['off', 'Off'], ['always', 'Always on'], ['hold', 'While aiming']]
-          .map(([v, n]) => `<option value="${v}"${settings.gyroMode === v ? ' selected' : ''}>${n}</option>`).join('')}</select></div>
-        ${sliderRow('Sensitivity', 'gyroSens', 0.2, 4, 0.1)}
-        ${toggleRow('Invert left / right', 'gyroInvX')}
-        ${toggleRow('Invert up / down', 'gyroInvY')}
-        <div class="row"><span class="muted" data-gyro>${esc(gyroStatus())}</span><button data-action="gyro-allow" style="${settings.gyroMode !== 'off' && !gyro.granted ? '' : 'display:none'}">Allow</button></div>
-        <div class="muted">"While aiming" turns gyro on while you hold Aim / right-click, LT, or any button you give the <b>Gyro</b> key.</div>
-      </div>
-
-      <div class="sec">Backup</div>
-      <div class="group">
-        <textarea data-io placeholder="Export puts the layout here. Paste a layout and tap Import."></textarea>
-        <div class="btns" style="margin-bottom:10px"><button data-action="export">Export</button><button data-action="import">Import</button></div>
-      </div>
-
-      <div class="sec">Advanced</div>
-      <div class="group">
         ${IS_IOS ? toggleRow('Act as Home Screen app <span class="muted">· reload</span>', 'spoofStandalone') : ''}
-        <div class="row"><span>Virtual controller</span><button data-action="reconnect">Reconnect</button></div>
-        <div class="row"><span>All settings</span><button class="danger" data-action="reset-all">Reset</button></div>
-      </div>`;
+        ${IS_IPHONE ? '' : toggleRow('Return to fullscreen <span class="muted">· after Safari closes it</span>', 'keepFs')}
+        <div class="row"><span>Controller not working?</span><button class="sm" data-action="reconnect">Reconnect</button></div>
+        <div class="row"><span>All settings</span><button class="sm danger" data-action="reset-all">Reset</button></div>
+      </div>` : ''}`;
   }
 
   let statusTimer = 0;
@@ -1416,7 +1501,10 @@
       renderPanel();
       statusTimer = setInterval(() => {
         const s = ui.panel.querySelector('[data-status]');
-        if (s) s.innerHTML = statusHtml();
+        const d = ui.panel.querySelector('[data-dot]');
+        const st = status();
+        if (s) s.textContent = st.text;
+        if (d) d.classList.toggle('ok', st.ok);
         refreshGyroUi();
       }, 1000);
     }
@@ -1549,6 +1637,79 @@
     if (mm.on && !profileUsesMouse()) ensureMouseMode(false);
   }
 
+  /* ---------- sharing layouts ---------- */
+  const layoutJson = () => JSON.stringify({ glasspad: 1, name: settings.active, controls: controls() });
+
+  function uniqueName(base) {
+    let name = base, n = 2;
+    while (settings.profiles[name]) name = `${base} ${n++}`;
+    return name;
+  }
+
+  // Accepts our export ({ name, controls }) or a bare array of controls.
+  // Never overwrites: a clash gets a numbered name.
+  function importLayout(text, quiet) {
+    let data;
+    try { data = JSON.parse(String(text || '').trim()); } catch (_) { data = null; }
+    const list = data && (Array.isArray(data) ? data : data.controls);
+    if (!Array.isArray(list) || !list.length || !list.every((x) => x && x.id && x.type)) {
+      if (!quiet) toast('That isn\'t a GlassPad layout. Copy one with Share → Copy first.');
+      return false;
+    }
+    const name = uniqueName(String((data && data.name) || 'Imported').trim().slice(0, 40) || 'Imported');
+    releaseLatched();
+    settings.profiles[name] = list;
+    switchProfile(name);
+    save(); renderControls(); renderPanel();
+    toast(`Imported "${name}" and switched to it.`);
+    return true;
+  }
+
+  function exportFile() {
+    const text = layoutJson();
+    const fileName = `glasspad-${settings.active.replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'layout'}.json`;
+    const file = typeof File === 'function' ? new File([text], fileName, { type: 'application/json' }) : null;
+    // iPhone/iPad: the share sheet offers Save to Files, AirDrop, Messages…
+    if (IS_IOS && file && navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file] }).catch((e) => { if (e && e.name !== 'AbortError') download(); });
+      return;
+    }
+    download();
+    function download() {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+      a.download = fileName;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+      toast(`Saved ${fileName}`);
+    }
+  }
+
+  function importFile(file) {
+    if (!file) return;
+    file.text().then((text) => importLayout(text), () => toast('Couldn\'t read that file.'));
+  }
+
+  // Fallback when the clipboard is blocked: show the text to copy or a box to paste into.
+  function showIo(mode, text = '') {
+    const wrap = ui.panel.querySelector('[data-io-wrap]');
+    if (!wrap) return;
+    wrap.style.display = '';
+    const io = wrap.querySelector('[data-io]');
+    wrap.querySelector('[data-io-hint]').textContent = mode === 'copy'
+      ? 'Couldn\'t copy automatically. Select the text below and copy it.'
+      : 'Paste a layout below, then tap Import.';
+    wrap.querySelector('[data-io-go]').style.display = mode === 'copy' ? 'none' : '';
+    io.value = text;
+    io.readOnly = mode === 'copy';
+    io.focus();
+    if (mode === 'copy') io.select();
+  }
+  function hideIo() {
+    const wrap = ui.panel.querySelector('[data-io-wrap]');
+    if (wrap) wrap.style.display = 'none';
+  }
+
   function doAction(action, el) {
     const c = ui.selected && findCtrl(ui.selected);
     const io = ui.panel.querySelector('[data-io]');
@@ -1617,23 +1778,38 @@
         switchProfile(Object.keys(settings.profiles)[0]);
         save(); renderControls(); renderPanel();
         break;
-      case 'export':
-        io.value = JSON.stringify({ name: settings.active, controls: controls() });
-        if (navigator.clipboard) navigator.clipboard.writeText(io.value).catch(() => {});
+      case 'export': {
+        const text = layoutJson();
+        const manual = () => showIo('copy', text);
+        if (!navigator.clipboard || !navigator.clipboard.writeText) { manual(); break; }
+        navigator.clipboard.writeText(text)
+          .then(() => toast(`Copied "${settings.active}". Paste it anywhere to share or back it up.`), manual);
         break;
-      case 'import':
-        try {
-          const data = JSON.parse(io.value);
-          const list = Array.isArray(data) ? data : data.controls;
-          if (!Array.isArray(list) || !list.every((x) => x && x.id && x.type)) throw new Error('bad');
-          const name = (prompt('Profile name:', (data.name || 'Imported')) || '').trim();
-          if (!name) break;
-          settings.profiles[name] = list;
-          switchProfile(name);
-          save(); renderControls(); renderPanel();
-        } catch (_) {
-          alert('That doesn\'t look like an exported layout.');
+      }
+      case 'import': {
+        const manual = () => showIo('paste');
+        if (!navigator.clipboard || !navigator.clipboard.readText) { manual(); break; }
+        // Safari shows a small "Paste" bubble here; tapping it hands us the text.
+        navigator.clipboard.readText().then((text) => { if (!importLayout(text, true)) manual(); }, manual);
+        break;
+      }
+      case 'import-text': if (io && importLayout(io.value)) hideIo(); break;
+      case 'io-close': hideIo(); break;
+      case 'export-file': exportFile(); break;
+      case 'import-file': { const f = ui.panel.querySelector('[data-file]'); if (f) { f.value = ''; f.click(); } break; }
+      case 'adv': ui.advOpen = !ui.advOpen; renderPanel(); break;
+      case 'profile-list': ui.profOpen = !ui.profOpen; renderPanel(); break;
+      case 'profile-pick':
+        ui.profOpen = false;
+        if (el.dataset.name !== settings.active && settings.profiles[el.dataset.name]) {
+          switchProfile(el.dataset.name);
+          save(); renderControls();
         }
+        renderPanel();
+        break;
+      case 'gyro-mode':
+        settings.gyroMode = el.dataset.v;
+        save(); requestGyro(true); renderPanel();
         break;
       case 'reconnect': syncConnection(true); break;
       case 'reset-all':
@@ -1654,16 +1830,24 @@
       if (o) o.textContent = text;
     };
 
+    if (t.dataset.file !== undefined) {
+      if (e.type === 'change') importFile(t.files && t.files[0]);
+      return;
+    }
+
     if (t.dataset.set) {
       const k = t.dataset.set;
       if (k === 'hidden') return setHidden(t.dataset.invert ? !val : val);
       if (k === 'profile') switchProfile(val); else settings[k] = val;
       if (t.type === 'range') out(k, val);
+      const pick = t.closest('.pick');
+      if (pick) pick.classList.toggle('on', val);
       save();
       if (k === 'show' || k === 'autoHide') { scanRealPads(); syncConnection(); }
       if (k === 'opacity' || k === 'scale' || k === 'profile') renderControls();
       if (k === 'blur') updateVisibility();
-      if (k === 'gyroMode') { requestGyro(true); refreshGyroUi(); }
+      if (k === 'profile') renderPanel();
+      if (k === 'gyroMode') { requestGyro(true); renderPanel(); }
       return;
     }
 
