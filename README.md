@@ -61,6 +61,9 @@ Open **Settings → Edit layout**.
   any keyboard key, or both.
 - **Add** controls with the buttons at the top: **+ Button**, **+ Key**, **+ Stick**, **+ D-pad**, **+ Touch** (an
   area you swipe on).
+- **Hide** a control by setting its **Opacity** to 0. It still works, you just can't see it. Touch areas are hidden
+  like this from the start, and they show up faintly while you edit. **Auto** makes a control follow the main
+  opacity in Settings.
 - **Reset** puts the layout back the way it was.
 - Tap **Done** when you're finished.
 

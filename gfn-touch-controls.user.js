@@ -121,7 +121,7 @@
   // The controller layout with a swipe area for the camera in place of the right stick.
   function defaultTouchControls() {
     return [
-      { id: 'look', type: 'touch', output: 'stick', x: 70, y: 58, w: 56, h: 80, sens: 1, invertY: false },
+      { id: 'look', type: 'touch', output: 'stick', x: 70, y: 58, w: 56, h: 80, sens: 1, invertY: false, opacity: 0 },
       ...defaultControls().filter((c) => c.id !== 'rs'),
     ];
   }
@@ -129,7 +129,7 @@
   // Shooter-style layout: WASD stick on the left, swipe-to-aim on the right.
   function defaultKbmControls() {
     return [
-      { id: 'aim', type: 'touch', output: 'mouse', x: 72, y: 56, w: 54, h: 86, sens: 1.5, invertY: false, tapClick: true },
+      { id: 'aim', type: 'touch', output: 'mouse', x: 72, y: 56, w: 54, h: 86, sens: 1.5, invertY: false, tapClick: true, opacity: 0 },
       { id: 'move', type: 'stick', output: 'keys', keys4: WASD.slice(), edgeKey: '', axes: 'left', x: 14, y: 66, size: 30, zone: 1.5, mode: 'floating', sens: 1, deadzone: 0.15, invertY: false },
       key('fire', 'Fire', ['MouseLeft'], 88, 74, 16, { color: '#ff8f87' }),
       key('ads', 'Aim', ['MouseRight'], 75, 84, 12),
@@ -1213,8 +1213,7 @@
                  border-radius: 30%; pointer-events: none; }
     .dpad .arm svg { width: 46%; height: 46%; }
     .dpad .arm.down { background: rgba(255,255,255,.34); border-color: rgba(255,255,255,.6); }
-    .touch { border: 1px dashed rgba(255,255,255,.14); border-radius: 24px; color: rgba(255,255,255,.3);
-             font-size: 12px; font-weight: 500; letter-spacing: .03em; align-items: flex-end; padding-bottom: 12px; }
+    .touch { border: 1px dashed rgba(255,255,255,.14); border-radius: 24px; }
     .touch.down { background: rgba(255,255,255,.03); }
     .gear { border-radius: 999px; opacity: .8; padding: 0 4px; }
     .gear span { flex: 1; height: 100%; display: flex; align-items: center; justify-content: center; padding: 8px 0; }
@@ -1286,6 +1285,7 @@
              padding: 8px 14px; font: 600 13px -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
     button.primary { background: rgba(255,255,255,.92); border-color: transparent; color: #111; }
     button.danger { color: #ff6961; }
+    button:disabled { opacity: .4; }
     button.x { width: 30px; height: 30px; padding: 0; display: inline-flex; align-items: center; justify-content: center;
                font-size: 13px; flex: none; }
     .chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 6px; }
@@ -1340,14 +1340,14 @@
     el.style.top = `${(pos.y / 100) * innerHeight - h / 2}px`;
   }
 
-  const touchHint = (c) => (c.output === 'stick' ? 'swipe to look' : 'swipe to aim');
-
   function buildControl(c) {
     const el = document.createElement('div');
     el.className = `ctrl ${c.type}`;
     el.dataset.ctrl = c.id;
     if (ui.selected === c.id) el.classList.add('sel');
-    el.style.opacity = c.opacity || settings.opacity;
+    const op = c.opacity == null ? settings.opacity : c.opacity;
+    // Keep see-through controls findable while editing.
+    el.style.opacity = ui.edit ? Math.max(op, 0.35) : op;
     const S = c.size * unit();
     let w = S, h = S;
 
@@ -1382,7 +1382,6 @@
     } else if (c.type === 'touch') {
       w = (c.w / 100) * innerWidth;
       h = (c.h / 100) * innerHeight;
-      el.textContent = c.label || touchHint(c);
     }
     el.style.width = `${w}px`;
     el.style.height = `${h}px`;
@@ -1623,7 +1622,9 @@
     const sec = (title) => `</div><div class="sec">${title}</div><div class="group">`;
     let html = `<div class="hd">${kind} <span class="muted" style="flex:1">${esc(c.label || '')}</span><button class="x" data-action="deselect">✕</button></div><div class="group">`;
     if (c.type !== 'touch') html += range('Size', 'size', 4, 60, 1, c.size);
-    html += range('Opacity', 'opacity', 0, 1, 0.05, c.opacity || 0, c.opacity ? c.opacity : 'auto');
+    const auto = c.opacity == null;
+    html += `<div class="row"><span>Opacity</span><input type="range" min="0" max="1" step="0.05" value="${auto ? settings.opacity : c.opacity}" data-prop="opacity"><output data-out="opacity">${auto ? 'auto' : c.opacity}</output><button class="sm" data-action="opacity-auto"${auto ? ' disabled' : ''}>Auto</button></div>`;
+    if (!auto && c.opacity < 0.35) html += '<div class="muted">Shown faintly while editing so you can still find it.</div>';
 
     if (c.type === 'button') {
       html += textField('Label', 'label', c.label);
@@ -1663,7 +1664,6 @@
       html += range('Height', 'h', 5, 100, 1, c.h);
       html += stick ? range('Sensitivity', 'sens', 0.3, 3, 0.1, c.sens || 1) : range('Sensitivity', 'sens', 0.2, 5, 0.1, c.sens || 1.5);
       if (!stick) html += range('Smoothing', 'smooth', 0, 1, 0.05, c.smooth == null ? 0.35 : c.smooth);
-      html += textField('Label', 'label', c.label || '', touchHint(c));
       if (!stick) html += `<label class="row"><span>Tap to left-click</span><input type="checkbox" data-prop="tapClick"${c.tapClick ? ' checked' : ''}></label>`;
       html += `<label class="row"><span>Invert Y</span><input type="checkbox" data-prop="invertY"${c.invertY ? ' checked' : ''}></label>`;
     }
@@ -1776,8 +1776,8 @@
       case 'add-stick': addControl({ id: newId(), type: 'stick', output: 'pad', axes: 'right', x: 50, y: 50, size: 26, zone: 1.3, mode: 'fixed', sens: 1, deadzone: 0.1, invertY: false }); break;
       case 'add-dpad': addControl({ id: newId(), type: 'dpad', x: 50, y: 50, size: 24 }); break;
       case 'add-touch': addControl(profileUsesMouse()
-        ? { id: newId(), type: 'touch', output: 'mouse', x: 50, y: 50, w: 40, h: 50, sens: 1.5, invertY: false, tapClick: true }
-        : { id: newId(), type: 'touch', output: 'stick', x: 50, y: 50, w: 40, h: 50, sens: 1, invertY: false }); break;
+        ? { id: newId(), type: 'touch', output: 'mouse', x: 50, y: 50, w: 40, h: 50, sens: 1.5, invertY: false, tapClick: true, opacity: 0 }
+        : { id: newId(), type: 'touch', output: 'stick', x: 50, y: 50, w: 40, h: 50, sens: 1, invertY: false, opacity: 0 }); break;
       case 'reset-layout':
         if (confirm(`Reset "${settings.active}" to its default layout?`)) {
           releaseLatched();
@@ -1794,6 +1794,7 @@
         break;
       }
       case 'clear-color': if (c) { delete c.color; save(); renderControls(); renderInspector(); } break;
+      case 'opacity-auto': if (c) { delete c.opacity; save(); renderControls(); renderInspector(); } break;
       case 'dup':
         if (c) addControl(Object.assign(JSON.parse(JSON.stringify(c)), { id: newId(), x: clamp(c.x + 5, 0, 100), y: clamp(c.y + 5, 0, 100) }));
         break;
@@ -1936,8 +1937,6 @@
         if (code === null) c.edgeKey = '';
         else if (code) c.edgeKey = code;
         else return;
-      } else if (k === 'opacity' && !val) {
-        delete c.opacity;
       } else {
         c[k] = val;
         if (k === 'output') {
@@ -1947,7 +1946,11 @@
           if (mm.on && !profileUsesMouse()) ensureMouseMode(false);
         }
       }
-      if (t.type === 'range') out(k, k === 'opacity' && !val ? 'auto' : val);
+      if (t.type === 'range') out(k, val);
+      if (k === 'opacity') {
+        const b = ui.inspector.querySelector('[data-action="opacity-auto"]');
+        if (b) b.disabled = false;
+      }
       save();
       renderControls();
       if (rerenderInspector) renderInspector();
