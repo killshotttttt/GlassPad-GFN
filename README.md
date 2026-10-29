@@ -1,14 +1,26 @@
 # GlassPad for GeForce NOW (Safari userscript)
 
-An on-screen controller you can fully customize for **GeForce NOW** (play.geforcenow.com) in Safari on iPhone and iPad.
-It adds a **virtual Xbox controller** to the page. GFN treats it like a real Bluetooth gamepad, so it works in
-any game that supports controllers. It can also send **keyboard keys** and act as a **mouse**, for keyboard + mouse
-games.
+Remappable **controller, touch and keyboard** controls for **GeForce NOW** (play.geforcenow.com) in Safari on iPhone
+and iPad. GlassPad adds a **virtual Xbox controller** to the page. GFN treats it like a real Bluetooth gamepad, so it
+works in any game that supports controllers. You can also swipe on **touch areas** to look around or aim, and send
+**keyboard keys** for keyboard games.
 
-![GlassPad's default gamepad layout in landscape on an iPhone-sized screen](docs/images/gamepad.png)
+![GlassPad's Controller layout in landscape on an iPhone-sized screen](docs/images/gamepad.png)
 
 <sub>Screenshots are from the included test page on an iPhone-sized landscape screen, with a placeholder backdrop
 where the game stream would be.</sub>
+
+## Built-in layouts
+Pick one from the profile list under **Settings → Layout**. You can change every layout, and **Reset** in edit mode
+puts it back to the default.
+
+| Layout | What it is |
+| --- | --- |
+| **Controller** | A full Xbox controller: two sticks, D-pad, ABXY, bumpers, triggers, View/Menu and L3/R3. |
+| **Touch** | The same controller, but the right stick is swapped for a big **touch area**. Swipe on the right side of the screen to move the camera. |
+| **Keyboard** | WASD stick, keyboard keys and a touch area that aims with the cursor, for keyboard games. **Esc** sits in the top left. |
+
+![The Touch layout: the controller with a large "swipe to look" area on the right instead of the right stick](docs/images/touch.png)
 
 ## Features
 - Two analog sticks, a D-pad, ABXY, LB/RB/LT/RT, View/Menu, and L3/R3.
@@ -28,46 +40,57 @@ where the game stream would be.</sub>
 - Clean frosted-glass look. If the stream stutters on an older device, turn off **Settings → Look → Frosted
   glass**. That keeps the look but skips the blur.
 - **Fullscreen** button. See [Fullscreen](#fullscreen).
-- Touches on the controls never reach the stream. Touches anywhere else still work as normal GFN mouse/touch input.
+- Touches on the controls never reach the stream. Touches anywhere else still work as normal GFN touch input.
 
-## Keyboard + mouse
-There is a built-in **"Keyboard + Mouse"** profile. Pick it from the profile list under **Settings → Layout**.
+## Touch areas
+A touch area is a rectangle you swipe on. Under *Output* in edit mode it can drive either:
+- **Right stick** (used by the **Touch** layout): swipe speed tilts the right stick, and it springs back to centre
+  when your finger stops. Use this for camera control in controller games.
+- **Cursor** (used by the **Keyboard** layout): swipes move GFN's cursor pixel for pixel, for aiming in keyboard
+  games. A quick tap is a left click (you can turn this off). There's also a **Smoothing** setting: higher gives
+  silkier but slightly laggier aim, lower is snappier. The default is 0.35.
 
-![The Keyboard + Mouse profile: WASD stick and number keys on the left, a swipe-to-aim area with Fire, Aim, Jump and other keys on the right](docs/images/keyboard-mouse.png)
+Each touch area has its own width, height, sensitivity and invert Y. Buttons placed on top of a touch area still
+work. Add one with **+ Touch** in edit mode.
+
+## Keyboard
+The built-in **Keyboard** layout is set up for shooters:
+
+![The Keyboard layout: Esc and number keys in the top left, a WASD stick on the left, a swipe-to-aim area with Fire, Aim, Jump and other keys on the right](docs/images/keyboard.png)
 
 - **Left stick → W A S D.** Under *Key at the rim* you can add a key that is pressed when you push the stick all
   the way out (for example Shift to sprint).
-- **Right side = mouse area.** Swipe to move the mouse or aim. A quick tap is a left click (you can turn this off).
-- **Buttons:** Fire = left mouse, Aim = right mouse, plus Jump (Space), R, E, Q, Ctrl, Shift, 1/2/3, Esc and Tab.
-- **🖱 button:** toggles GFN's mouse mode by hand. See "How the mouse works" below.
+- **Right side = touch area.** Swipe to aim with the cursor.
+- **Buttons:** Esc (top left), 1/2/3, Fire = left click, Aim = right click, plus Jump (Space), R, E, Q, Ctrl, Shift
+  and Tab.
+- **🖱 button:** toggles GFN's mouse mode by hand. See "How cursor aiming works" below.
 
 Any button can send keys:
-- In edit mode, tap a button and type into *Keyboard / mouse*, for example `Shift + W`, `Space`, `F`, `Esc`, `LMB`,
-  `RMB`, `WheelUp` or `WheelDown`.
-- Or pick keys from the **+ Add key…** list.
+- In edit mode, tap a button and type into *Keys*, for example `Shift + W`, `Space`, `F`, `Esc`, `LMB` (left click),
+  `RMB` (right click), `WheelUp` or `WheelDown`.
+- Or pick keys from the **Add key…** list.
 - A single button can send keys and gamepad buttons together.
 
 Other controls:
-- **Sticks:** under *Output*, choose **Gamepad stick**, **Keys** (any four keys) or **Mouse**.
+- **Sticks:** under *Output*, choose **Gamepad stick**, **Keys** (any four keys) or **Cursor**.
 - **D-pad:** can send four keys instead, for example `Up, Left, Down, Right` for the arrow keys.
-- **New controls:** use **+ Key** and **+ Mouse area** in edit mode. A mouse area has its own width, height,
-  sensitivity and **Smoothing**. Higher smoothing gives silkier but slightly laggier aim; lower is snappier.
-  The default is 0.35.
 
-### How the mouse works
+### How cursor aiming works
 Safari on iPhone/iPad can't simulate mouse clicks or relative mouse movement for GFN, so the script uses GFN's
 built-in **controller-as-mouse mode** instead:
-- Double-pressing R3 switches that mode on. The script does this for you the first time you touch a mouse control.
+- Double-pressing R3 switches that mode on. The script does this for you the first time you use a control that
+  moves the cursor or clicks.
 - While the mode is on, the virtual controller's right stick moves the cursor, A is left click and LT is right
   click. The script turns your swipes into exactly those inputs.
-- While mouse mode is on, GFN stops passing gamepad buttons to the game. Keyboard + mouse layouts aren't affected
-  because they send real keys. Switching back to a gamepad-only profile turns the mode off again.
+- While mouse mode is on, GFN stops passing gamepad buttons to the game. The Keyboard layout isn't affected because
+  it sends real keys. Switching to a layout that doesn't use the cursor (Controller or Touch) turns the mode off
+  again.
 - Switching the mode on or off produces one left click at the cursor. GFN does the same with a real controller.
 - The script can't see whether GFN's mouse mode is actually on, so it keeps its own record. If they get out of
-  sync, tap the **🖱** button or **Settings → Mouse → Toggle** once (the Mouse section only
-  shows up in layouts that use the mouse). Symptoms of being out of sync:
+  sync, tap the **🖱** button or **Settings → Cursor → Toggle** once (the Cursor section only
+  shows up in layouts that use the cursor). Symptoms of being out of sync:
   - swipes don't move the cursor, or move the camera like a stick instead;
-  - in a gamepad layout, buttons do nothing.
+  - in a controller layout, buttons do nothing.
 
 ## Install (iPhone / iPad)
 1. Install **Userscripts** from the App Store (free, by Justin Wasack).
@@ -114,7 +137,7 @@ The script updates itself through the Userscripts app. It's published to a secre
 - Your layouts and settings are kept: they're stored in Safari, not in the script file.
 
 Publishing a new version from this PC:
-1. Raise `// @version` at the top of `gfn-touch-controls.user.js`, for example 1.6.1 → 1.6.2. The app only updates when
+1. Raise `// @version` at the top of `gfn-touch-controls.user.js`, for example 1.7.0 → 1.7.1. The app only updates when
    the version number goes up.
 2. Run `bash release.sh`. It checks the file, refuses to publish an old version number, and uploads to the gist.
 3. Commit and push to this repo as usual.
@@ -128,9 +151,10 @@ Aim by moving the phone. Pick a mode under **Settings → Gyro aim** (its other 
 ![The Gyro aim section of the menu: mode, sensitivity and invert switches](docs/images/gyro.png)
 
 Where the motion goes:
-- **Keyboard + mouse layouts:** gyro moves the mouse through the same smooth mouse engine as the aim area. This is
-  the real gyro-aim feel, and you can swipe and use gyro at the same time.
-- **Gamepad layouts:** gyro tilts the right stick and adds to whatever your thumb is doing.
+- **Layouts that aim with the cursor (Keyboard):** gyro moves the cursor through the same smooth engine as the
+  touch area. This is the real gyro-aim feel, and you can swipe and use gyro at the same time.
+- **Controller layouts (Controller, Touch):** gyro tilts the right stick and adds to whatever your thumb or the
+  touch area is doing.
 
 Details:
 - **Axis layout:** Safari on iPhone labels the rotation axes differently from other browsers. The script works out
@@ -169,8 +193,8 @@ Tap the fullscreen icon in the top pill, or **Settings → Fullscreen**. Tap it 
 - **Settings → ✎ Edit layout**
   - Drag controls to move them.
   - Tap a control to open its settings: size, opacity, label, colour, shape, toggle mode, which gamepad buttons it
-    sends, and stick options.
-  - Use **+ Button / + Key / + Stick / + D-pad / + Mouse area** to add controls.
+    sends, and stick or touch area options.
+  - Use **+ Button / + Key / + Stick / + D-pad / + Touch** to add controls.
   - Use **↺ Reset** to restore the defaults for the current profile.
   - Tap **✓ Done** when you're finished.
 - While editing, the settings button can be dragged too.
@@ -187,7 +211,7 @@ The **Share** row under **Settings → Layout** works on the current profile:
 - **↑ (open)** imports a `.json` layout file.
 
 An imported layout is always added as a **new profile** and selected, so it never overwrites one you have. If the
-name is taken it gets a number, for example "Default 2". If the clipboard is blocked, a text box appears instead
+name is taken it gets a number, for example "Controller 2". If the clipboard is blocked, a text box appears instead
 so you can copy or paste by hand.
 
 Settings are saved per site in `localStorage`.
@@ -207,7 +231,7 @@ Settings are saved per site in `localStorage`.
 - **Keys do nothing**
   - Tap the game picture once so the stream has focus.
   - Check the game reacts to a real keyboard on GFN.
-- **Mouse doesn't move**: tap **🖱** once to resync GFN's mouse mode (see above).
+- **Cursor doesn't move**: tap **🖱** once to resync GFN's mouse mode (see above).
 
 ## Testing on a computer
 Serve this folder (for example `python -m http.server`) and open `test.html`. The page loads the script and shows
@@ -226,7 +250,7 @@ red while the left button is held and blue while the right button is held.
 - When GFN goes fullscreen (on iPad), the overlay moves into the fullscreen element so it stays visible.
 - Keys are sent as synthetic `keydown`/`keyup` events with the right `code` and `keyCode`. GFN's streamer reads them
   from `document`.
-- Mouse movement: finger movement is collected in pixels. Each time GFN polls the controller, the script sets the
+- Cursor movement: finger movement on a cursor touch area (or from gyro) is collected in pixels. Each time GFN polls the controller, the script sets the
   right-stick tilt that moves the cursor by that amount, using GFN's own speed formula.
   - **Smoothing window:** the movement is spread over a short window, so cursor speed follows your finger without
     bursts.

@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         GlassPad for GeForce NOW
 // @namespace    gfn-touch-controls
-// @version      1.6.2
-// @description  Fully customizable on-screen controls for GeForce NOW in Safari: virtual Xbox controller, keyboard keys and a swipe-to-aim mouse area.
+// @version      1.7.0
+// @description  Fully customizable on-screen controls for GeForce NOW in Safari: remappable controller, touch and keyboard controls.
 // @match        https://play.geforcenow.com/*
 // @run-at       document-start
 // @inject-into  page
@@ -20,7 +20,7 @@
   /* ------------------------------------------------------------------ *
    * Constants
    * ------------------------------------------------------------------ */
-  const VERSION = '1.6.2'; // kept in step with @version by release.sh
+  const VERSION = '1.7.0'; // kept in step with @version by release.sh
   const STORE_KEY = 'gfn-touch-controls:v1';
   const PAD_ID = 'Xbox 360 Controller (XInput STANDARD GAMEPAD)';
   // Standard Gamepad mapping (https://w3c.github.io/gamepad/#remapping)
@@ -30,7 +30,6 @@
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const IS_IPHONE = /iPhone|iPod/.test(navigator.userAgent);
   const CAN_VIBRATE = typeof navigator.vibrate === 'function';
-  const KBM_NAME = 'Keyboard + Mouse';
   const WASD = ['KeyW', 'KeyA', 'KeyS', 'KeyD'];
 
   /* ------------------------------------------------------------------ *
@@ -119,10 +118,18 @@
     ];
   }
 
+  // The controller layout with a swipe area for the camera in place of the right stick.
+  function defaultTouchControls() {
+    return [
+      { id: 'look', type: 'touch', output: 'stick', x: 70, y: 58, w: 56, h: 80, sens: 1, invertY: false },
+      ...defaultControls().filter((c) => c.id !== 'rs'),
+    ];
+  }
+
   // Shooter-style layout: WASD stick on the left, swipe-to-aim on the right.
   function defaultKbmControls() {
     return [
-      { id: 'aim', type: 'mouse', x: 72, y: 56, w: 54, h: 86, sens: 1.5, invertY: false, tapClick: true },
+      { id: 'aim', type: 'touch', output: 'mouse', x: 72, y: 56, w: 54, h: 86, sens: 1.5, invertY: false, tapClick: true },
       { id: 'move', type: 'stick', output: 'keys', keys4: WASD.slice(), edgeKey: '', axes: 'left', x: 14, y: 66, size: 30, zone: 1.5, mode: 'floating', sens: 1, deadzone: 0.15, invertY: false },
       key('fire', 'Fire', ['MouseLeft'], 88, 74, 16, { color: '#ff8f87' }),
       key('ads', 'Aim', ['MouseRight'], 75, 84, 12),
@@ -132,14 +139,24 @@
       key('use', 'E', ['KeyE'], 31, 42, 10),
       key('q', 'Q', ['KeyQ'], 21, 33, 9),
       key('sprint', '⇧', ['ShiftLeft'], 7, 36, 11),
-      key('k1', '1', ['Digit1'], 6, 10, 8),
-      key('k2', '2', ['Digit2'], 13, 10, 8),
-      key('k3', '3', ['Digit3'], 20, 10, 8),
-      key('esc', 'Esc', ['Escape'], 40, 9, 8),
+      key('esc', 'Esc', ['Escape'], 6, 10, 8),
+      key('k1', '1', ['Digit1'], 14, 10, 8),
+      key('k2', '2', ['Digit2'], 21, 10, 8),
+      key('k3', '3', ['Digit3'], 28, 10, 8),
       key('tab', 'Tab', ['Tab'], 60, 9, 8),
       key('mm', '🖱', ['MouseMode'], 50, 18, 8),
     ];
   }
+
+  const CONTROLLER = 'Controller', TOUCH = 'Touch', KEYBOARD = 'Keyboard';
+  const DEFAULT_LAYOUTS = { [CONTROLLER]: defaultControls, [TOUCH]: defaultTouchControls, [KEYBOARD]: defaultKbmControls };
+  const defaultProfiles = () => {
+    const p = {};
+    for (const n in DEFAULT_LAYOUTS) p[n] = DEFAULT_LAYOUTS[n]();
+    return p;
+  };
+  // 1.7 calls swipe areas "touch areas"; layouts saved or shared before then say "mouse".
+  const upgradeControls = (list) => { for (const c of list) if (c.type === 'mouse') c.type = 'touch'; return list; };
 
   function defaultSettings() {
     return {
@@ -157,9 +174,9 @@
       spoofStandalone: IS_IOS,
       keepFs: true, // go back into fullscreen after Safari's swipe-down closes it
       gear: { x: 50, y: 5 },
-      active: 'Default',
-      profiles: { Default: defaultControls(), [KBM_NAME]: defaultKbmControls() },
-      kbmAdded: true,
+      active: CONTROLLER,
+      profiles: defaultProfiles(),
+      layouts: 2, // version of the built-in profile set
     };
   }
 
@@ -169,16 +186,28 @@
       const raw = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
       if (!raw || typeof raw !== 'object') return def;
       const s = Object.assign(def, raw);
-      if (!s.profiles || !Object.keys(s.profiles).length) s.profiles = { Default: defaultControls() };
-      // Settings saved by 1.0 don't have the keyboard + mouse profile yet.
-      if (!raw.kbmAdded) {
-        if (!s.profiles[KBM_NAME]) s.profiles[KBM_NAME] = defaultKbmControls();
-        s.kbmAdded = true;
+      if (!s.profiles || !Object.keys(s.profiles).length) s.profiles = defaultProfiles();
+      // Before 1.7 the built-in profiles were "Default" and "Keyboard + Mouse"
+      // (1.0 only had "Default"). Rename them and add the touch profile.
+      if (!(raw.layouts >= 2)) {
+        const renames = { Default: CONTROLLER, 'Keyboard + Mouse': KEYBOARD };
+        const next = {};
+        for (const [n, list] of Object.entries(s.profiles)) {
+          const to = renames[n] && !s.profiles[renames[n]] ? renames[n] : n;
+          next[to] = list;
+          if (s.active === n) s.active = to;
+          if (to === CONTROLLER && !s.profiles[TOUCH]) next[TOUCH] = defaultTouchControls();
+        }
+        if (!next[TOUCH]) next[TOUCH] = defaultTouchControls();
+        if (!raw.kbmAdded && !next[KEYBOARD]) next[KEYBOARD] = defaultKbmControls();
+        s.profiles = next;
+        delete s.kbmAdded;
+        s.layouts = 2;
       }
       if (!s.profiles[s.active]) s.active = Object.keys(s.profiles)[0];
       // 1.2 uses lighter label colours that read better on frosted glass.
       const softer = { '#3cb043': '#7ee2a0', '#e23b3b': '#ff8f87', '#2f7de1': '#8cc4ff', '#f2c12e': '#ffe08a' };
-      for (const list of Object.values(s.profiles)) for (const c of list) if (softer[c.color]) c.color = softer[c.color];
+      for (const list of Object.values(s.profiles)) for (const c of upgradeControls(list)) if (softer[c.color]) c.color = softer[c.color];
       return s;
     } catch (_) {
       return def;
@@ -194,7 +223,7 @@
   }
   const controls = () => settings.profiles[settings.active];
   const findCtrl = (id) => controls().find((c) => c.id === id);
-  const profileUsesMouse = () => controls().some((c) => c.type === 'mouse' ||
+  const profileUsesMouse = () => controls().some((c) => (c.type === 'touch' && c.output !== 'stick') ||
     (c.type === 'stick' && c.output === 'mouse') ||
     (c.keys || []).some((k) => k === 'MouseLeft' || k === 'MouseRight'));
 
@@ -567,8 +596,8 @@
    *   - yaw is measured around real-world "up" (from gravity), so turning
    *     your body works however far the phone is tilted back;
    *   - pitch is measured around the screen's horizontal axis.
-   * Keyboard + mouse layouts feed it to the mouse engine (true gyro aim);
-   * gamepad layouts add it to the right stick.
+   * Layouts that move the cursor feed it to the mouse engine (true gyro
+   * aim); controller layouts add it to the right stick.
    * ------------------------------------------------------------------ */
   const NEEDS_MOTION_PERMISSION = !!(window.DeviceMotionEvent && typeof window.DeviceMotionEvent.requestPermission === 'function');
   const gyro = {
@@ -715,7 +744,7 @@
     if (!gyro.granted) return 'Needs motion access: tap Allow';
     if (!gyro.seen) return 'Waiting for motion data…';
     const layout = gyro.samples < 12 ? 'checking axes…' : `${gyro.map === 'safari' ? 'Safari' : 'standard'} axes`;
-    return `On · ${profileUsesMouse() ? 'moves the mouse' : 'moves the right stick'} · ${layout}`;
+    return `On · ${profileUsesMouse() ? 'moves the cursor' : 'moves the right stick'} · ${layout}`;
   }
   function refreshGyroUi() {
     const s = ui.panel && ui.panel.querySelector('[data-gyro]');
@@ -825,7 +854,7 @@
     if (c.type === 'button') startButton(e, c, el);
     else if (c.type === 'stick') startStick(e, c, el);
     else if (c.type === 'dpad') startDpad(e, c, el);
-    else if (c.type === 'mouse') startMouseZone(e, c, el);
+    else if (c.type === 'touch') startTouchArea(e, c, el);
   }
 
   const downCount = new Map();
@@ -942,21 +971,10 @@
     };
 
     let move;
-    let decay = 0;
+    let look = null;
     if (c.mode === 'touchpad') {
-      // Swipe-to-look: finger speed -> stick deflection, springs back when you stop.
-      let lx = e.clientX, ly = e.clientY, lt = e.timeStamp, ax = 0, ay = 0;
-      move = (ev) => {
-        const dt = Math.max(4, ev.timeStamp - lt);
-        const k = sens * 1.6;
-        ax = ax * 0.35 + clamp(((ev.clientX - lx) / dt) * k, -1, 1) * 0.65;
-        ay = ay * 0.35 + clamp(((ev.clientY - ly) / dt) * k, -1, 1) * 0.65;
-        lx = ev.clientX; ly = ev.clientY; lt = ev.timeStamp;
-        emit(ax, ay * ySign);
-        knobAt(ax * travel, ay * travel);
-        clearTimeout(decay);
-        decay = setTimeout(() => { ax = ay = 0; emit(0, 0); knobAt(0, 0); }, 60);
-      };
+      look = swipeLook(e, sens, (x, y) => { emit(x, y * ySign); knobAt(x * travel, y * travel); });
+      move = look.move;
     } else {
       move = (ev) => {
         let dx = ev.clientX - ox;
@@ -972,12 +990,30 @@
     active.set(e.pointerId, {
       move,
       end() {
-        clearTimeout(decay);
+        if (look) look.stop();
         emit(0, 0);
         base.style.transform = knob.style.transform = '';
         el.classList.remove('down');
       },
     });
+  }
+
+  // Swipe-to-look: finger speed -> stick deflection, springs back when you stop.
+  function swipeLook(e, sens, emit) {
+    let lx = e.clientX, ly = e.clientY, lt = e.timeStamp, ax = 0, ay = 0, decay = 0;
+    return {
+      move(ev) {
+        const dt = Math.max(4, ev.timeStamp - lt);
+        const k = sens * 1.6;
+        ax = ax * 0.35 + clamp(((ev.clientX - lx) / dt) * k, -1, 1) * 0.65;
+        ay = ay * 0.35 + clamp(((ev.clientY - ly) / dt) * k, -1, 1) * 0.65;
+        lx = ev.clientX; ly = ev.clientY; lt = ev.timeStamp;
+        emit(ax, ay);
+        clearTimeout(decay);
+        decay = setTimeout(() => { ax = ay = 0; emit(0, 0); }, 60);
+      },
+      stop() { clearTimeout(decay); },
+    };
   }
 
   function startDpad(e, c, el) {
@@ -1009,7 +1045,9 @@
     });
   }
 
-  function startMouseZone(e, c, el) {
+  // Touch area: swipe to move the cursor (output 'mouse') or the right stick ('stick').
+  function startTouchArea(e, c, el) {
+    if (c.output === 'stick') return startTouchLook(e, c, el);
     ensureMouseMode(true);
     mouse.touching++;
     el.classList.add('down');
@@ -1033,6 +1071,16 @@
           setTimeout(() => holdKey('MouseLeft', false), 70);
         }
       },
+    });
+  }
+
+  function startTouchLook(e, c, el) {
+    el.classList.add('down');
+    const ys = c.invertY ? -1 : 1;
+    const look = swipeLook(e, c.sens || 1, (x, y) => setAxes('right', x, y * ys));
+    active.set(e.pointerId, {
+      move: look.move,
+      end() { look.stop(); setAxes('right', 0, 0); el.classList.remove('down'); },
     });
   }
 
@@ -1165,9 +1213,9 @@
                  border-radius: 30%; pointer-events: none; }
     .dpad .arm svg { width: 46%; height: 46%; }
     .dpad .arm.down { background: rgba(255,255,255,.34); border-color: rgba(255,255,255,.6); }
-    .mouse { border: 1px dashed rgba(255,255,255,.14); border-radius: 24px; color: rgba(255,255,255,.3);
+    .touch { border: 1px dashed rgba(255,255,255,.14); border-radius: 24px; color: rgba(255,255,255,.3);
              font-size: 12px; font-weight: 500; letter-spacing: .03em; align-items: flex-end; padding-bottom: 12px; }
-    .mouse.down { background: rgba(255,255,255,.03); }
+    .touch.down { background: rgba(255,255,255,.03); }
     .gear { border-radius: 999px; opacity: .8; padding: 0 4px; }
     .gear span { flex: 1; height: 100%; display: flex; align-items: center; justify-content: center; padding: 8px 0; }
     .gear i { width: 1px; height: 16px; background: rgba(255,255,255,.25); }
@@ -1292,6 +1340,8 @@
     el.style.top = `${(pos.y / 100) * innerHeight - h / 2}px`;
   }
 
+  const touchHint = (c) => (c.output === 'stick' ? 'swipe to look' : 'swipe to aim');
+
   function buildControl(c) {
     const el = document.createElement('div');
     el.className = `ctrl ${c.type}`;
@@ -1329,10 +1379,10 @@
         Object.assign(a.style, { left: `${x + g}px`, top: `${y + g}px`, width: `${t - 2 * g}px`, height: `${t - 2 * g}px` });
         el.appendChild(a);
       }
-    } else if (c.type === 'mouse') {
+    } else if (c.type === 'touch') {
       w = (c.w / 100) * innerWidth;
       h = (c.h / 100) * innerHeight;
-      el.textContent = c.label || '🖱 swipe to aim';
+      el.textContent = c.label || touchHint(c);
     }
     el.style.width = `${w}px`;
     el.style.height = `${h}px`;
@@ -1345,8 +1395,8 @@
     ui.layer.textContent = '';
     els.clear();
     downCount.clear();
-    // Mouse areas go underneath, so buttons placed on top of them still work.
-    const list = controls().slice().sort((a, b) => (b.type === 'mouse') - (a.type === 'mouse'));
+    // Touch areas go underneath, so buttons placed on top of them still work.
+    const list = controls().slice().sort((a, b) => (b.type === 'touch') - (a.type === 'touch'));
     for (const c of list) {
       const el = buildControl(c);
       ui.layer.appendChild(el);
@@ -1475,7 +1525,7 @@
         <div class="row"><span class="muted" data-gyro>${esc(gyroStatus())}</span><button class="sm" data-action="gyro-allow" style="${gyro.granted ? 'display:none' : ''}">Allow</button></div>` : ''}
       </div>
 
-      ${profileUsesMouse() || mm.on ? `<div class="sec">Mouse</div>
+      ${profileUsesMouse() || mm.on ? `<div class="sec">Cursor</div>
       <div class="group">
         <div class="row"><span>Mouse mode <span class="muted" data-mm>${mm.on ? 'on' : 'off'}</span></span><button class="sm" data-action="mousemode">Toggle</button></div>
         <div class="muted">Turns on by itself. If swipes stop moving the cursor, tap Toggle once.</div>
@@ -1519,7 +1569,7 @@
       <button data-action="add-key">+ Key</button>
       <button data-action="add-stick">+ Stick</button>
       <button data-action="add-dpad">+ D-pad</button>
-      <button data-action="add-mouse">+ Mouse</button>
+      <button data-action="add-touch">+ Touch</button>
       <button data-action="reset-layout">Reset</button>`;
   }
 
@@ -1569,10 +1619,10 @@
   function renderInspector() {
     const c = ui.selected && findCtrl(ui.selected);
     if (!c) { ui.inspector.style.display = 'none'; return; }
-    const kind = { button: 'Button', stick: 'Stick', dpad: 'D-pad', mouse: 'Mouse area' }[c.type];
+    const kind = { button: 'Button', stick: 'Stick', dpad: 'D-pad', touch: 'Touch area' }[c.type];
     const sec = (title) => `</div><div class="sec">${title}</div><div class="group">`;
     let html = `<div class="hd">${kind} <span class="muted" style="flex:1">${esc(c.label || '')}</span><button class="x" data-action="deselect">✕</button></div><div class="group">`;
-    if (c.type !== 'mouse') html += range('Size', 'size', 4, 60, 1, c.size);
+    if (c.type !== 'touch') html += range('Size', 'size', 4, 60, 1, c.size);
     html += range('Opacity', 'opacity', 0, 1, 0.05, c.opacity || 0, c.opacity ? c.opacity : 'auto');
 
     if (c.type === 'button') {
@@ -1589,7 +1639,7 @@
         .map((n, i) => `<button class="chip${c.buttons.includes(i) ? ' on' : ''}" data-action="map" data-btn="${i}">${n}</button>`).join('')}</div>`;
     } else if (c.type === 'stick') {
       const out = c.output || 'pad';
-      html += `<div class="row"><span>Output</span><select data-prop="output">${[['pad', 'Gamepad stick'], ['keys', 'Keys (e.g. WASD)'], ['mouse', 'Mouse']]
+      html += `<div class="row"><span>Output</span><select data-prop="output">${[['pad', 'Gamepad stick'], ['keys', 'Keys (e.g. WASD)'], ['mouse', 'Cursor']]
         .map(([v, n]) => `<option value="${v}"${out === v ? ' selected' : ''}>${n}</option>`).join('')}</select></div>`;
       if (out === 'pad') {
         html += `<div class="row"><span>Acts as</span><select data-prop="axes"><option value="left"${c.axes === 'left' ? ' selected' : ''}>Left stick</option><option value="right"${c.axes === 'right' ? ' selected' : ''}>Right stick</option></select></div>`;
@@ -1605,13 +1655,16 @@
       html += `<label class="row"><span>Invert Y</span><input type="checkbox" data-prop="invertY"${c.invertY ? ' checked' : ''}></label>`;
     } else if (c.type === 'dpad') {
       html += textField('Keys ↑, ←, ↓, →', 'keys4', c.keys4 ? c.keys4.map(keyName).join(', ') : '', 'empty = gamepad D-pad');
-    } else if (c.type === 'mouse') {
+    } else if (c.type === 'touch') {
+      const stick = c.output === 'stick';
+      html += `<div class="row"><span>Output</span><select data-prop="output">${[['stick', 'Right stick'], ['mouse', 'Cursor']]
+        .map(([v, n]) => `<option value="${v}"${(stick ? 'stick' : 'mouse') === v ? ' selected' : ''}>${n}</option>`).join('')}</select></div>`;
       html += range('Width', 'w', 5, 100, 1, c.w);
       html += range('Height', 'h', 5, 100, 1, c.h);
-      html += range('Sensitivity', 'sens', 0.2, 5, 0.1, c.sens || 1.5);
-      html += range('Smoothing', 'smooth', 0, 1, 0.05, c.smooth == null ? 0.35 : c.smooth);
-      html += textField('Label', 'label', c.label || '', '🖱 swipe to aim');
-      html += `<label class="row"><span>Tap to left-click</span><input type="checkbox" data-prop="tapClick"${c.tapClick ? ' checked' : ''}></label>`;
+      html += stick ? range('Sensitivity', 'sens', 0.3, 3, 0.1, c.sens || 1) : range('Sensitivity', 'sens', 0.2, 5, 0.1, c.sens || 1.5);
+      if (!stick) html += range('Smoothing', 'smooth', 0, 1, 0.05, c.smooth == null ? 0.35 : c.smooth);
+      html += textField('Label', 'label', c.label || '', touchHint(c));
+      if (!stick) html += `<label class="row"><span>Tap to left-click</span><input type="checkbox" data-prop="tapClick"${c.tapClick ? ' checked' : ''}></label>`;
       html += `<label class="row"><span>Invert Y</span><input type="checkbox" data-prop="invertY"${c.invertY ? ' checked' : ''}></label>`;
     }
     html += `</div><div class="btns"><button class="grow" data-action="dup">Duplicate</button><button class="grow danger" data-action="delete">Delete</button></div>`;
@@ -1658,7 +1711,7 @@
     }
     const name = uniqueName(String((data && data.name) || 'Imported').trim().slice(0, 40) || 'Imported');
     releaseLatched();
-    settings.profiles[name] = list;
+    settings.profiles[name] = upgradeControls(list);
     switchProfile(name);
     save(); renderControls(); renderPanel();
     toast(`Imported "${name}" and switched to it.`);
@@ -1722,11 +1775,13 @@
       case 'add-key': addControl(key(newId(), 'Space', ['Space'], 50, 50, 11)); break;
       case 'add-stick': addControl({ id: newId(), type: 'stick', output: 'pad', axes: 'right', x: 50, y: 50, size: 26, zone: 1.3, mode: 'fixed', sens: 1, deadzone: 0.1, invertY: false }); break;
       case 'add-dpad': addControl({ id: newId(), type: 'dpad', x: 50, y: 50, size: 24 }); break;
-      case 'add-mouse': addControl({ id: newId(), type: 'mouse', x: 50, y: 50, w: 40, h: 50, sens: 1.5, invertY: false, tapClick: true }); break;
+      case 'add-touch': addControl(profileUsesMouse()
+        ? { id: newId(), type: 'touch', output: 'mouse', x: 50, y: 50, w: 40, h: 50, sens: 1.5, invertY: false, tapClick: true }
+        : { id: newId(), type: 'touch', output: 'stick', x: 50, y: 50, w: 40, h: 50, sens: 1, invertY: false }); break;
       case 'reset-layout':
         if (confirm(`Reset "${settings.active}" to its default layout?`)) {
           releaseLatched();
-          settings.profiles[settings.active] = settings.active === KBM_NAME ? defaultKbmControls() : defaultControls();
+          settings.profiles[settings.active] = (DEFAULT_LAYOUTS[settings.active] || defaultControls)();
           ui.selected = null; ui.inspector.style.display = 'none';
           save(); renderControls();
         }
@@ -1884,7 +1939,12 @@
         delete c.opacity;
       } else {
         c[k] = val;
-        if (k === 'output') { rerenderInspector = true; if (val === 'keys' && !c.keys4) c.keys4 = WASD.slice(); }
+        if (k === 'output') {
+          rerenderInspector = true;
+          if (val === 'keys' && !c.keys4) c.keys4 = WASD.slice();
+          // Mouse mode blocks gamepad buttons, so drop it once nothing needs the cursor.
+          if (mm.on && !profileUsesMouse()) ensureMouseMode(false);
+        }
       }
       if (t.type === 'range') out(k, k === 'opacity' && !val ? 'auto' : val);
       save();
