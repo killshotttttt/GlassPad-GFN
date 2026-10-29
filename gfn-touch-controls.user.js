@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GlassPad for GeForce NOW
 // @namespace    gfn-touch-controls
-// @version      1.7.0
+// @version      1.7.1
 // @description  Fully customizable on-screen controls for GeForce NOW in Safari: remappable controller, touch and keyboard controls.
 // @match        https://play.geforcenow.com/*
 // @run-at       document-start
@@ -20,7 +20,7 @@
   /* ------------------------------------------------------------------ *
    * Constants
    * ------------------------------------------------------------------ */
-  const VERSION = '1.7.0'; // kept in step with @version by release.sh
+  const VERSION = '1.7.1'; // kept in step with @version by release.sh
   const STORE_KEY = 'gfn-touch-controls:v1';
   const PAD_ID = 'Xbox 360 Controller (XInput STANDARD GAMEPAD)';
   // Standard Gamepad mapping (https://w3c.github.io/gamepad/#remapping)
@@ -1809,9 +1809,10 @@
       case 'gyro-allow': requestGyro(true); break;
       case 'fullscreen': togglePanel(false); toggleFullscreen(); break;
       case 'profile-new': {
-        const name = (prompt('Name for the new profile (copies the current layout):', `${settings.active} copy`) || '').trim();
-        if (!name) break;
-        settings.profiles[name] = JSON.parse(JSON.stringify(controls()));
+        const typed = (prompt('Name for the new profile (starts from the default controller layout):', uniqueName('My layout')) || '').trim();
+        if (!typed) break;
+        const name = uniqueName(typed.slice(0, 40)); // never overwrite an existing profile
+        settings.profiles[name] = defaultControls();
         switchProfile(name);
         save(); renderControls(); renderPanel();
         break;
