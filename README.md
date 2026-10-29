@@ -10,6 +10,70 @@ works in any game that supports controllers. You can also swipe on **touch areas
 <sub>Screenshots are from the included test page on an iPhone-sized landscape screen, with a placeholder backdrop
 where the game stream would be.</sub>
 
+## Install (Safari on iPhone / iPad)
+GlassPad is a userscript. Safari runs it through **Userscripts**, a free, open-source Safari extension. Setup takes
+about two minutes.
+
+**1. Get the Userscripts app**
+
+Install [Userscripts](https://apps.apple.com/app/userscripts/id1463298887) (by Justin Wasack) from the App Store.
+
+**2. Choose a folder for scripts**
+
+Open the **Userscripts** app, tap **Set Userscripts Directory**, and pick or create a folder, for example
+`iCloud Drive/Userscripts`.
+
+**3. Turn on the Safari extension**
+
+- Open the **Settings** app → **Apps** → **Safari** → **Extensions** → **Userscripts**. On iOS 17 and older it's
+  **Settings** → **Safari** → **Extensions** → **Userscripts**.
+- Turn **Allow Extension** on.
+- Under **Permissions**, set **play.geforcenow.com** to **Allow**, or allow **All Websites**.
+
+**4. Install GlassPad**
+
+- In Safari, open the install link:
+  **[gfn-touch-controls.user.js](https://gist.githubusercontent.com/killshotttttt/d4bd9b1bc9ee3115c96c240e08b7fc82/raw/gfn-touch-controls.user.js)**
+- The page shows the script's code. That's expected.
+- Tap the **ᴀA** button (or the puzzle icon) in the address bar, then **Userscripts**, then **Install**. Confirm.
+
+**5. Play**
+
+- Open [play.geforcenow.com](https://play.geforcenow.com) in a **normal Safari tab** and reload the page once.
+- A small glass pill appears at the top centre of the screen. That's GlassPad.
+- If it doesn't, tap **ᴀA** → **Userscripts** and check that "GlassPad for GeForce NOW" is switched on.
+
+> ⚠️ **Don't launch GeForce NOW from a Home Screen icon.** Safari extensions don't run in Home Screen web apps.
+> Always open it in a Safari tab. If GFN insists you add it to the Home Screen before it will stream, **Settings →
+> More settings → Act as Home Screen app** (on by default) makes the page think it already is.
+
+<details>
+<summary>Install by hand instead (no link)</summary>
+
+Download [`gfn-touch-controls.user.js`](gfn-touch-controls.user.js) from this repo and save it into the folder you
+picked in step 2, for example with **Save to Files** or iCloud for Windows. Keep only one copy of the script in that
+folder. A hand-installed copy doesn't update itself, so the link install is better for most people.
+</details>
+
+### Updates
+GlassPad updates through the Userscripts app. When a new version is out, it appears under **Updates** in the
+Userscripts popup (**ᴀA** → **Userscripts**). Tap it, then reload GeForce NOW. Your layouts and settings are kept,
+because they're stored in Safari, not in the script.
+
+## Using it
+The pill at the top has three buttons:
+
+<img src="docs/images/pill.png" alt="The top pill with fullscreen, eye and settings buttons" width="160">
+
+- **fullscreen**: see [Fullscreen](#fullscreen).
+- **eye**: hides the controls so you can tap GFN's own menus and the game directly. Tap it again to bring them back.
+  The virtual controller stays connected while hidden.
+- **settings** (the sliders icon): opens the menu. Pick a layout, edit it, share it, and change how it looks.
+
+![The GlassPad settings menu showing the connection status, Edit layout, Fullscreen and the Controller, Touch and Keyboard layouts](docs/images/menu.png)
+
+To switch the virtual controller off completely, use **Settings → More settings → Virtual controller**.
+
 ## Built-in layouts
 Pick one from the profile list under **Settings → Layout**. You can change every layout, and **Reset** in edit mode
 puts it back to the default.
@@ -91,56 +155,6 @@ built-in **controller-as-mouse mode** instead:
   shows up in layouts that use the cursor). Symptoms of being out of sync:
   - swipes don't move the cursor, or move the camera like a stick instead;
   - in a controller layout, buttons do nothing.
-
-## Install (iPhone / iPad)
-1. Install **Userscripts** from the App Store (free, by Justin Wasack).
-2. Open the **Userscripts** app and tap **Set Userscripts Directory**. Pick a folder, for example
-   `iCloud Drive/Userscripts`.
-3. Install the script. Either:
-   - **From the link (easiest):** open this link in Safari, tap the puzzle/**ᴀA** icon → **Userscripts**, and tap
-     the install prompt:
-     https://gist.githubusercontent.com/killshotttttt/d4bd9b1bc9ee3115c96c240e08b7fc82/raw/gfn-touch-controls.user.js
-   - **By hand:** put `gfn-touch-controls.user.js` into that folder, for example with iCloud for Windows, or by
-     emailing it to yourself and choosing **Save to Files**.
-
-   Keep only one copy of the script in the folder. If you're switching to the link install, delete the old file first.
-4. Go to **Settings → Apps → Safari → Extensions → Userscripts**. Turn it **on** and set
-   **play.geforcenow.com** to **Allow** (or allow All Websites).
-5. Open **https://play.geforcenow.com** in a normal Safari tab. Tap the puzzle/**ᴀA** icon → **Userscripts** and
-   check that "GlassPad for GeForce NOW" is enabled. Then reload the page.
-6. A small glass pill appears at the top centre with three buttons:
-
-   <img src="docs/images/pill.png" alt="The top pill with fullscreen, eye and settings buttons" width="160">
-
-   - **fullscreen**
-   - **eye**: show or hide the controls
-   - **settings** (the sliders icon): opens the menu
-
-![The GlassPad settings menu showing the connection status, Edit layout, Fullscreen, profiles, sharing and look options](docs/images/menu.png)
-
-The **eye** hides the on-screen controls so you can tap GFN's own menus and the game directly, for example to pick
-things in a menu. Tap it again to bring the controls back. The virtual controller stays connected while hidden, so
-mouse mode and the game's input don't reset. To switch the virtual controller off completely, use
-**Settings → More settings → Virtual controller**.
-
-> ⚠️ Safari extensions **do not run in Home Screen web apps**. Launch GFN from a normal Safari tab, not from the
-> GeForce NOW icon on your Home Screen. If GFN insists you add it to the Home Screen before it will stream, the menu
-> option **More settings → "Act as Home Screen app"** (on by default on iOS) makes the page think it already is.
-> Turn it off and reload if it causes layout problems.
-
-## Updates
-The script updates itself through the Userscripts app. It's published to a secret (unlisted) GitHub gist, and its
-`@updateURL` points there.
-- Userscripts checks for new versions every so often. When one is out, it appears under **Updates** in the
-  Userscripts popup (puzzle/**ᴀA** icon → **Userscripts**). Tap it to install, then reload GFN.
-- To check straight away, open the Userscripts popup, refresh it, and look under **Updates**.
-- Your layouts and settings are kept: they're stored in Safari, not in the script file.
-
-Publishing a new version from this PC:
-1. Raise `// @version` at the top of `gfn-touch-controls.user.js`, for example 1.7.0 → 1.7.1. The app only updates when
-   the version number goes up.
-2. Run `bash release.sh`. It checks the file, refuses to publish an old version number, and uploads to the gist.
-3. Commit and push to this repo as usual.
 
 ## Gyro aim
 Aim by moving the phone. Pick a mode under **Settings → Gyro aim** (its other options appear once it's on):
@@ -232,6 +246,13 @@ Settings are saved per site in `localStorage`.
   - Tap the game picture once so the stream has focus.
   - Check the game reacts to a real keyboard on GFN.
 - **Cursor doesn't move**: tap **🖱** once to resync GFN's mouse mode (see above).
+
+## Publishing a new version
+The `@updateURL` in the script points to a GitHub gist, which is where the Userscripts app checks for updates.
+1. Raise `// @version` at the top of `gfn-touch-controls.user.js`, for example 1.7.0 → 1.7.1. The app only updates
+   when the version number goes up.
+2. Run `bash release.sh`. It checks the file, refuses to publish an old version number, and uploads to the gist.
+3. Commit and push to this repo as usual.
 
 ## Testing on a computer
 Serve this folder (for example `python -m http.server`) and open `test.html`. The page loads the script and shows
